@@ -424,6 +424,7 @@ function parseCartera(rows) {
     items.push({
       simbolo: sym, nombre: (r[1]||'').replace(/"/g,''), broker: (r[2]||'').replace(/"/g,'').trim(),
       acciones: toNum(r[3]), precioCompra: toNum(r[4]), importeCompra: toNum(r[5]),
+      cambioDiarioPct: toNumPct(r[6]), cambioDiarioEur: toNum(r[7]),
       precioActual: toNum(r[8]), valorActual: va, gp: toNum(r[10]),
       rentSD: toNumPct(r[11]), gpCD: toNum(r[12]),
       totalReturn: toNumPct(r[13]), sector: (r[15]||'').replace(/"/g,'').trim() || 'Otros'
@@ -653,16 +654,16 @@ function renderResumen() {
 
   // Positions table in resumen
   const sortedByGP = [...c].sort((a, b) => b.gp - a.gp);
-  let posHtml = `<thead><tr><th>Símbolo</th><th>Sector</th><th>Broker</th><th>Invertido</th><th>Valor actual</th><th>G/P €</th><th>Rent. %</th><th>Total Ret.</th><th>Peso</th></tr></thead><tbody>`;
+  let posHtml = `<thead><tr><th>Símbolo</th><th>Acciones</th><th>Invertido</th><th>Valor actual</th><th>Var. día %</th><th>Var. día €</th><th>G/P €</th><th>Rent. %</th><th>Total Ret.</th><th>Peso</th></tr></thead><tbody>`;
   sortedByGP.forEach(x => {
     const peso = (x.valorActual / totalAct * 100);
-    const brokerClass = x.broker.includes('MyInvestor') ? 'badge-cyan' : 'badge-amber';
     posHtml += `<tr>
       <td class="bold">${x.simbolo}</td>
-      <td><span class="badge badge-muted">${x.sector}</span></td>
-      <td><span class="badge ${brokerClass}">${x.broker}</span></td>
+      <td>${fmt(x.acciones,0)}</td>
       <td>${fmtE(x.importeCompra)}</td>
       <td class="bold">${fmtE(x.valorActual)}</td>
+      <td class="${gpClass(x.cambioDiarioPct)}">${fmtP(x.cambioDiarioPct)}</td>
+      <td class="${gpClass(x.cambioDiarioEur)}">${x.cambioDiarioEur>=0?'+':''}${fmtE(x.cambioDiarioEur)}</td>
       <td class="${gpClass(x.gp)}">${x.gp>=0?'+':''}${fmtE(x.gp)}</td>
       <td class="${gpClass(x.rentSD)}">${fmtP(x.rentSD)}</td>
       <td class="${gpClass(x.totalReturn)}" style="font-weight:600">${fmtP(x.totalReturn)}</td>
@@ -924,7 +925,7 @@ async function loadData() {
 // ═══════════════════════════════════════════════════════════════════════════
 // LOGIN — Cambia la contraseña aquí
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_PASSWORD = 'Leoncito2016';
+const APP_PASSWORD = 'maria2024';
 
 function doLogin() {
   const input = document.getElementById('login-pass').value;
