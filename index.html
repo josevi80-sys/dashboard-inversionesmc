@@ -316,7 +316,19 @@ function parseCSV(text) {
 
 function toNum(v) {
   if (!v || v === '' || v === '""') return 0;
-  v = v.replace(/"/g, '').replace(/,/g, '.');
+  v = v.replace(/"/g, '');
+  // Remove €, %, currency symbols, spaces
+  v = v.replace(/[€$£%\s]/g, '');
+  // Google Sheets CSV uses "1,234.56" format (comma=thousands, dot=decimal)
+  v = v.replace(/,/g, '');
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function toNumPct(v) {
+  // For values already formatted as percentages like "-9.06%"
+  if (!v || v === '' || v === '""') return 0;
+  v = v.replace(/"/g, '').replace(/[€$£%\s]/g, '').replace(/,/g, '');
   const n = parseFloat(v);
   return isNaN(n) ? 0 : n;
 }
@@ -353,11 +365,11 @@ function parseCartera(rows) {
     const va = toNum(r[9]);
     if (va === 0 && toNum(r[5]) === 0) continue;
     items.push({
-      simbolo: sym, nombre: (r[1]||'').replace(/"/g,''), broker: (r[2]||'').replace(/"/g,''),
+      simbolo: sym, nombre: (r[1]||'').replace(/"/g,''), broker: (r[2]||'').replace(/"/g,'').trim(),
       acciones: toNum(r[3]), precioCompra: toNum(r[4]), importeCompra: toNum(r[5]),
       precioActual: toNum(r[8]), valorActual: va, gp: toNum(r[10]),
-      rentSD: toNum(r[11]) * 100, gpCD: toNum(r[12]),
-      totalReturn: toNum(r[13]) * 100, sector: (r[15]||'').replace(/"/g,'') || 'Otros'
+      rentSD: toNumPct(r[11]), gpCD: toNum(r[12]),
+      totalReturn: toNumPct(r[13]), sector: (r[15]||'').replace(/"/g,'').trim() || 'Otros'
     });
   }
   return items;
@@ -438,7 +450,7 @@ function parseCerradas(rows) {
     const op = (r[5]||'').replace(/"/g,'').trim().toLowerCase();
     if (op === 'venta') {
       const gp = toNum(r[16]);
-      const pct = toNum(r[17]) * 100;
+      const pct = toNumPct(r[17]);
       posiciones.push({
         valor: (r[1]||'').replace(/"/g,''), anio: currentYear || 0,
         gpNeta: gp, pctGP: pct
