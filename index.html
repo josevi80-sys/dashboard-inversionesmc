@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Inversiones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #060a13; --bg2: #0c1322; --card: #0f172a; --card2: #131c33;
+  --border: #1c2842; --border2: #243352;
+  --cyan: #22d3ee; --cyan-dim: rgba(34,211,238,0.1); --cyan-mid: rgba(34,211,238,0.25);
+  --green: #34d399; --green-dim: rgba(52,211,153,0.1);
+  --red: #f87171; --red-dim: rgba(248,113,113,0.1);
+  --amber: #fbbf24; --amber-dim: rgba(251,191,36,0.1);
+  --purple: #a78bfa; --purple-dim: rgba(167,139,250,0.1);
+  --rose: #fb7185;
+  --t1: #f1f5f9; --t2: #94a3b8; --t3: #475569; --t4: #1e293b;
+  --radius: 14px; --radius-sm: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'IBM Plex Mono', monospace; background: var(--bg);
+  color: var(--t1); min-height: 100vh; overflow-x: hidden;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(34,211,238,0.06), transparent),
+              radial-gradient(ellipse 60% 40% at 80% 100%, rgba(167,139,250,0.04), transparent);
+}
+.app { position: relative; z-index: 1; }
+
+/* ── HEADER ── */
+.header {
+  padding: 24px 32px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  backdrop-filter: blur(20px); background: rgba(6,10,19,0.7); position: sticky; top: 0; z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--cyan), #0891b2); font-size: 20px; font-weight: 800;
+  color: var(--bg); font-family: 'Outfit', sans-serif; box-shadow: 0 0 24px rgba(34,211,238,0.2);
+}
+.header h1 { font-family: 'Outfit', sans-serif; font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.header .sub { font-size: 10px; color: var(--t3); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+.status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── NAV ── */
+.nav { display: flex; gap: 3px; background: var(--card); border-radius: 10px; padding: 4px; border: 1px solid var(--border); }
+.nav button {
+  padding: 8px 18px; border-radius: 7px; border: none; cursor: pointer; font-size: 11px;
+  font-weight: 600; font-family: 'IBM Plex Mono', monospace; transition: all 0.25s;
+  background: transparent; color: var(--t3);
+}
+.nav button:hover { color: var(--t2); background: var(--bg2); }
+.nav button.active { background: var(--cyan); color: var(--bg); box-shadow: 0 0 16px rgba(34,211,238,0.25); }
+
+/* ── MAIN ── */
+.main { padding: 28px 32px 60px; max-width: 1440px; margin: 0 auto; }
+@media (max-width: 768px) { .main { padding: 16px 14px 40px; } .header { padding: 16px; } }
+
+/* ── KPIs ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 28px; }
+.kpi {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px 22px; position: relative; overflow: hidden; transition: all 0.3s;
+}
+.kpi:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.kpi::after {
+  content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; border-radius: 0 0 0 60px;
+  opacity: 0.06; pointer-events: none;
+}
+.kpi.cyan::after { background: var(--cyan); } .kpi.green::after { background: var(--green); }
+.kpi.red::after { background: var(--red); } .kpi.amber::after { background: var(--amber); }
+.kpi.purple::after { background: var(--purple); }
+.kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px; color: var(--t3); margin-bottom: 8px; }
+.kpi-value { font-family: 'Outfit', sans-serif; font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+.kpi-sub { font-size: 11px; color: var(--t2); margin-top: 4px; }
+.kpi-dot { position: absolute; top: 18px; right: 20px; width: 8px; height: 8px; border-radius: 50%; }
+
+/* ── GRID ── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* ── CARDS ── */
+.chart-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; position: relative;
+}
+.chart-card h3 {
+  font-size: 12px; font-weight: 600; color: var(--t2); margin-bottom: 18px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* ── TABLE ── */
+.table-wrap {
+  overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--card); scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+th {
+  padding: 12px 16px; text-align: left; border-bottom: 2px solid var(--border);
+  color: var(--t3); font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+  font-weight: 600; position: sticky; top: 0; background: var(--card); z-index: 2;
+}
+td { padding: 11px 16px; border-bottom: 1px solid var(--t4); }
+tr:nth-child(even) td { background: rgba(255,255,255,0.012); }
+tr:hover td { background: rgba(34,211,238,0.03); }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 10px;
+  font-weight: 700; letter-spacing: 0.5px;
+}
+.badge-cyan { color: var(--cyan); background: var(--cyan-dim); }
+.badge-amber { color: var(--amber); background: var(--amber-dim); }
+.badge-purple { color: var(--purple); background: var(--purple-dim); }
+.badge-green { color: var(--green); background: var(--green-dim); }
+.badge-red { color: var(--red); background: var(--red-dim); }
+.badge-muted { color: var(--t2); background: rgba(255,255,255,0.04); }
+
+.gp-pos { color: var(--green); font-weight: 700; }
+.gp-neg { color: var(--red); font-weight: 700; }
+.bold { font-weight: 700; }
+
+/* ── FILTERS ── */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+.filters span { font-size: 11px; color: var(--t3); }
+.filter-btn {
+  padding: 6px 14px; border-radius: 7px; border: 1px solid var(--border); background: var(--card);
+  color: var(--t3); font-size: 11px; font-family: inherit; cursor: pointer; transition: all 0.2s;
+}
+.filter-btn:hover { border-color: var(--t3); color: var(--t2); }
+.filter-btn.active { background: var(--cyan); color: var(--bg); border-color: var(--cyan); }
+
+/* ── RANKING ── */
+.rank-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--t4);
+}
+.rank-item:last-child { border-bottom: none; }
+.rank-sym { font-weight: 700; }
+.rank-sec { color: var(--t3); font-size: 10px; margin-left: 8px; }
+
+/* ── LOADING ── */
+.loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 50vh; gap: 20px;
+}
+.spinner {
+  width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--cyan);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { color: var(--t3); font-size: 12px; letter-spacing: 1px; }
+
+/* ── TIMESTAMP ── */
+.timestamp {
+  text-align: center; margin-top: 32px; padding: 16px; border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--t3); letter-spacing: 0.5px;
+}
+
+/* ── SECTION ── */
+.section { display: none; }
+.section.active { display: block; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ── CANVAS ── */
+.chart-container { position: relative; width: 100%; }
+.chart-container canvas { width: 100% !important; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">₿</div>
+      <div>
+        <h1>Dashboard de Inversiones</h1>
+        <div class="sub"><span class="status-dot"></span>Conectado a Google Sheets · Auto-refresh</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <button class="active" data-tab="resumen">Resumen</button>
+      <button data-tab="cartera">Cartera</button>
+      <button data-tab="dividendos">Dividendos</button>
+      <button data-tab="operaciones">Operaciones</button>
+      <button data-tab="cerradas">Cerradas</button>
+    </nav>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Cargando datos desde Google Sheets...</div>
+    </div>
+
+    <div id="content" style="display:none">
+
+      <!-- ═══════ RESUMEN ═══════ -->
+      <div class="section active" id="sec-resumen">
+        <div class="kpi-grid" id="kpi-resumen"></div>
+        <div class="grid-2">
+          <div class="chart-card"><h3>Distribución por sector</h3><div class="chart-container"><canvas id="chart-sector"></canvas></div></div>
+          <div class="chart-card"><h3>Distribución por broker</h3><div class="chart-container"><canvas id="chart-broker"></canvas></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-card"><h3>Dividendos anuales</h3><div class="chart-container"><canvas id="chart-div-anual"></canvas></div></div>
+          <div class="chart-card"><h3>Dividendos acumulados</h3><div class="chart-container"><canvas id="chart-div-acum"></canvas></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-card"><h3>🏆 Top ganadoras</h3><div id="top-winners"></div></div>
+          <div class="chart-card"><h3>📉 Top perdedoras</h3><div id="top-losers"></div></div>
+        </div>
+      </div>
+
+      <!-- ═══════ CARTERA ═══════ -->
+      <div class="section" id="sec-cartera">
+        <div class="kpi-grid" id="kpi-cartera"></div>
+        <div class="table-wrap"><table id="table-cartera"></table></div>
+        <div class="chart-card" style="margin-top:24px"><h3>Ganancia/Pérdida por posición</h3><div class="chart-container"><canvas id="chart-gp-bar"></canvas></div></div>
+      </div>
+
+      <!-- ═══════ DIVIDENDOS ═══════ -->
+      <div class="section" id="sec-dividendos">
+        <div class="kpi-grid" id="kpi-dividendos"></div>
+        <div class="filters" id="filters-div-year"></div>
+        <div class="grid-2">
+          <div class="chart-card"><h3 id="title-div-mensual">Dividendos mensuales</h3><div class="chart-container"><canvas id="chart-div-mensual"></canvas></div></div>
+          <div class="chart-card"><h3 id="title-div-activo">Dividendos por activo</h3><div class="chart-container"><canvas id="chart-div-activo"></canvas></div></div>
+        </div>
+        <div class="table-wrap" style="margin-top:18px"><table id="table-dividendos"></table></div>
+        <div class="chart-card" style="margin-top:24px"><h3>Evolución anual</h3><div class="chart-container"><canvas id="chart-div-evol"></canvas></div></div>
+      </div>
+
+      <!-- ═══════ OPERACIONES ═══════ -->
+      <div class="section" id="sec-operaciones">
+        <div class="filters" id="filters-ops"></div>
+        <div class="kpi-grid" id="kpi-operaciones"></div>
+        <div class="table-wrap"><table id="table-operaciones"></table></div>
+      </div>
+
+      <!-- ═══════ CERRADAS ═══════ -->
+      <div class="section" id="sec-cerradas">
+        <div class="kpi-grid" id="kpi-cerradas"></div>
+        <div class="table-wrap"><table id="table-cerradas"></table></div>
+        <div class="chart-card" style="margin-top:24px"><h3>G/P por posición cerrada</h3><div class="chart-container"><canvas id="chart-cerradas"></canvas></div></div>
+      </div>
+
+      <div class="timestamp" id="timestamp"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG — Cambia el SHEET_ID por el tuyo si es diferente
+// ═══════════════════════════════════════════════════════════════════════════
+const SHEET_ID = '1_4i-LtsT7QYa14b6DeBAfdcDIoSGHxuv-3z-yBuYOK8';
+const AUTO_REFRESH_MINUTES = 10;
+
+const SHEETS = {
+  cartera: 'Cartera',
+  dividendos: 'Dividendos netos',
+  operaciones: 'Operaciones ejecutadas',
+  cerradas: 'Cierre posiciones'
+};
+
+const COLORS = {
+  cyan: '#22d3ee', green: '#34d399', red: '#f87171', amber: '#fbbf24',
+  purple: '#a78bfa', rose: '#fb7185', blue: '#60a5fa', lime: '#a3e635',
+  orange: '#fb923c', pink: '#f472b6', teal: '#2dd4bf', indigo: '#818cf8',
+  emerald: '#6ee7b7', yellow: '#facc15'
+};
+const PALETTE = Object.values(COLORS);
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA FETCHING
+// ═══════════════════════════════════════════════════════════════════════════
+async function fetchSheet(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Error cargando ${sheetName}: ${res.status}`);
+  const text = await res.text();
+  return parseCSV(text);
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let current = '', inQuote = false, row = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuote) {
+      if (ch === '"' && text[i+1] === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuote = false; }
+      else { current += ch; }
+    } else {
+      if (ch === '"') { inQuote = true; }
+      else if (ch === ',') { row.push(current.trim()); current = ''; }
+      else if (ch === '\n' || (ch === '\r' && text[i+1] === '\n')) {
+        row.push(current.trim()); current = ''; rows.push(row); row = [];
+        if (ch === '\r') i++;
+      } else { current += ch; }
+    }
+  }
+  if (current || row.length) { row.push(current.trim()); rows.push(row); }
+  return rows;
+}
+
+function toNum(v) {
+  if (!v || v === '' || v === '""') return 0;
+  v = v.replace(/"/g, '').replace(/,/g, '.');
+  const n = parseFloat(v);
+  return isNaN(n) ? 0 : n;
+}
+
+function parseDate(v) {
+  if (!v) return '';
+  v = v.replace(/"/g, '');
+  if (v.includes('/')) {
+    const p = v.split('/');
+    if (p.length === 3) return `${p[2]}-${p[0].padStart(2,'0')}-${p[1].padStart(2,'0')}`;
+  }
+  if (v.match(/^\d{4}-\d{2}-\d{2}/)) return v.substring(0, 10);
+  if (v.match(/^Date\(/)) {
+    const m = v.match(/Date\((\d+),(\d+),(\d+)\)/);
+    if (m) return `${m[1]}-${String(+m[2]+1).padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  }
+  const n = parseFloat(v);
+  if (!isNaN(n) && n > 40000 && n < 60000) {
+    const d = new Date(Date.UTC(1899, 11, 30 + Math.round(n)));
+    return d.toISOString().substring(0, 10);
+  }
+  return v;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA PARSING
+// ═══════════════════════════════════════════════════════════════════════════
+function parseCartera(rows) {
+  const items = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const sym = (r[0] || '').replace(/"/g, '').trim();
+    if (!sym || sym === '') continue;
+    const va = toNum(r[9]);
+    if (va === 0 && toNum(r[5]) === 0) continue;
+    items.push({
+      simbolo: sym, nombre: (r[1]||'').replace(/"/g,''), broker: (r[2]||'').replace(/"/g,''),
+      acciones: toNum(r[3]), precioCompra: toNum(r[4]), importeCompra: toNum(r[5]),
+      precioActual: toNum(r[8]), valorActual: va, gp: toNum(r[10]),
+      rentSD: toNum(r[11]) * 100, gpCD: toNum(r[12]),
+      totalReturn: toNum(r[13]) * 100, sector: (r[15]||'').replace(/"/g,'') || 'Otros'
+    });
+  }
+  return items;
+}
+
+function parseDividendos(rows) {
+  const years = {};
+  let currentYear = null, currentItems = [], currentTotals = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const first = (r[0]||'').replace(/"/g,'').trim();
+    const yr = parseInt(first);
+    if (yr >= 2020 && yr <= 2030 && r.filter(c => c && c.replace(/"/g,'').trim()).length <= 2) {
+      if (currentYear) years[currentYear] = buildDivYear(currentItems, currentTotals);
+      currentYear = yr; currentItems = []; currentTotals = [];
+      continue;
+    }
+    if (first === 'SIMBOLO') continue;
+    if (currentYear && first) {
+      const monthly = [];
+      for (let m = 1; m <= 12; m++) monthly.push(toNum(r[m]));
+      const total = toNum(r[13]);
+      if (first.match(/^[A-Z]/)) {
+        currentItems.push({ activo: first, monthly, total });
+      }
+    }
+    if (currentYear && !first && toNum(r[1]) > 0) {
+      for (let m = 1; m <= 12; m++) currentTotals.push(toNum(r[m]));
+    }
+  }
+  if (currentYear) years[currentYear] = buildDivYear(currentItems, currentTotals);
+  return years;
+}
+
+function buildDivYear(items, totals) {
+  const porActivo = {};
+  const mensual = new Array(12).fill(0);
+  let total = 0;
+  items.forEach(it => {
+    if (it.total > 0) porActivo[it.activo] = it.total;
+    total += it.total;
+    it.monthly.forEach((v, i) => mensual[i] += v);
+  });
+  if (totals.length === 12) {
+    for (let i = 0; i < 12; i++) if (totals[i] > 0) mensual[i] = totals[i];
+  }
+  return { total: Math.round(total * 100) / 100, mensual, porActivo };
+}
+
+function parseOperaciones(rows) {
+  const ops = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const valor = (r[1]||'').replace(/"/g,'').trim();
+    if (!valor) continue;
+    const operacion = (r[5]||'').replace(/"/g,'').trim().toLowerCase();
+    if (!operacion || (operacion !== 'compra' && operacion !== 'venta')) continue;
+    const impCompra = toNum(r[14]);
+    const impVenta = toNum(r[15]);
+    ops.push({
+      fecha: parseDate(r[0]), valor, broker: (r[2]||'').replace(/"/g,''),
+      bolsa: (r[3]||'').replace(/"/g,''), cantidad: toNum(r[4]),
+      operacion, importe: operacion === 'venta' ? impVenta : impCompra,
+      divisa: (r[8]||'').replace(/"/g,'')
+    });
+  }
+  return ops.sort((a, b) => b.fecha.localeCompare(a.fecha));
+}
+
+function parseCerradas(rows) {
+  const posiciones = [];
+  let currentYear = null;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const first = (r[0]||'').replace(/"/g,'').trim();
+    const yr = parseInt(first);
+    if (yr >= 2020 && yr <= 2030) { currentYear = yr; continue; }
+    const op = (r[5]||'').replace(/"/g,'').trim().toLowerCase();
+    if (op === 'venta') {
+      const gp = toNum(r[16]);
+      const pct = toNum(r[17]) * 100;
+      posiciones.push({
+        valor: (r[1]||'').replace(/"/g,''), anio: currentYear || 0,
+        gpNeta: gp, pctGP: pct
+      });
+    }
+  }
+  return posiciones;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FORMATTING
+// ═══════════════════════════════════════════════════════════════════════════
+const fmt = (n, d=2) => isNaN(n) ? '—' : new Intl.NumberFormat('es-ES',{minimumFractionDigits:d,maximumFractionDigits:d}).format(n);
+const fmtE = n => isNaN(n) ? '—' : `${fmt(n)}€`;
+const fmtP = n => isNaN(n) ? '—' : `${n>=0?'+':''}${fmt(n)}%`;
+const gpClass = n => n >= 0 ? 'gp-pos' : 'gp-neg';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHART MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+const charts = {};
+
+function makeChart(id, config) {
+  if (charts[id]) { charts[id].destroy(); }
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = '#1c2842';
+  Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+  Chart.defaults.font.size = 11;
+  charts[id] = new Chart(ctx, config);
+}
+
+function doughnutConfig(labels, data, colors) {
+  return {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors || PALETTE.slice(0, labels.length), borderColor: '#060a13', borderWidth: 2 }] },
+    options: {
+      responsive: true, cutout: '55%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 10 } } },
+        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmtE(ctx.raw)} (${fmt((ctx.raw/ctx.dataset.data.reduce((a,b)=>a+b,0))*100,1)}%)` } }
+      }
+    }
+  };
+}
+
+function barConfig(labels, data, color, horizontal = false) {
+  const colors = Array.isArray(color) ? color : new Array(labels.length).fill(color);
+  const cfg = {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderRadius: 6, maxBarThickness: 48 }] },
+    options: {
+      responsive: true, indexAxis: horizontal ? 'y' : 'x',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtE(ctx.raw) } } },
+      scales: {
+        x: { grid: { color: '#1c284233' } },
+        y: { grid: { color: '#1c284233' } }
+      }
+    }
+  };
+  return cfg;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// RENDERING
+// ═══════════════════════════════════════════════════════════════════════════
+let STATE = { cartera: [], dividendos: {}, operaciones: [], cerradas: [], divYear: 2026, opsType: 'todas', opsBroker: 'todos' };
+
+function renderKPIs(containerId, kpis) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = kpis.map(k => `
+    <div class="kpi ${k.accent||''}">
+      <div class="kpi-dot" style="background:${k.dotColor||'var(--cyan)'}"></div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="color:${k.color||'var(--t1)'}">${k.value}</div>
+      ${k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderResumen() {
+  const c = STATE.cartera;
+  const totalInv = c.reduce((s, x) => s + x.importeCompra, 0);
+  const totalAct = c.reduce((s, x) => s + x.valorActual, 0);
+  const gpT = totalAct - totalInv;
+  const divT = Object.values(STATE.dividendos).reduce((s, d) => s + d.total, 0);
+  const gpConDiv = gpT + divT;
+  const winners = c.filter(x => x.gp > 0).length;
+  const losers = c.filter(x => x.gp < 0).length;
+  const cerGP = STATE.cerradas.reduce((s, x) => s + x.gpNeta, 0);
+
+  renderKPIs('kpi-resumen', [
+    { label: 'Valor cartera', value: fmtE(totalAct), color: 'var(--cyan)', dotColor: 'var(--cyan)', accent: 'cyan', sub: `Invertido: ${fmtE(totalInv)}` },
+    { label: 'G/P sin dividendos', value: fmtE(gpT), color: gpT>=0?'var(--green)':'var(--red)', dotColor: gpT>=0?'var(--green)':'var(--red)', accent: gpT>=0?'green':'red', sub: fmtP((gpT/totalInv)*100) },
+    { label: 'G/P con dividendos', value: fmtE(gpConDiv), color: gpConDiv>=0?'var(--green)':'var(--red)', dotColor: 'var(--green)', accent: 'green', sub: `${fmtP((gpConDiv/totalInv)*100)} total return` },
+    { label: 'Dividendos cobrados', value: fmtE(divT), color: 'var(--amber)', dotColor: 'var(--amber)', accent: 'amber', sub: `Yield: ${fmt((divT/totalInv)*100)}%` },
+    { label: 'Win rate', value: `${fmt((winners/c.length)*100,0)}%`, color: 'var(--purple)', dotColor: 'var(--purple)', accent: 'purple', sub: `${winners}W / ${losers}L de ${c.length}` },
+    { label: 'G/P pos. cerradas', value: fmtE(cerGP), color: cerGP>=0?'var(--green)':'var(--red)', dotColor: 'var(--cyan)', accent: 'cyan', sub: `${STATE.cerradas.length} operaciones cerradas` },
+  ]);
+
+  // Sector chart
+  const sectorMap = {};
+  c.forEach(x => { sectorMap[x.sector] = (sectorMap[x.sector]||0) + x.valorActual; });
+  const sLabels = Object.keys(sectorMap).sort((a,b) => sectorMap[b]-sectorMap[a]);
+  makeChart('chart-sector', doughnutConfig(sLabels, sLabels.map(s => Math.round(sectorMap[s]))));
+
+  // Broker chart
+  const brokerMap = {};
+  c.forEach(x => { brokerMap[x.broker] = (brokerMap[x.broker]||0) + x.valorActual; });
+  const bLabels = Object.keys(brokerMap);
+  makeChart('chart-broker', doughnutConfig(bLabels, bLabels.map(b => Math.round(brokerMap[b]))));
+
+  // Div annual
+  const divYears = Object.keys(STATE.dividendos).sort();
+  makeChart('chart-div-anual', barConfig(divYears, divYears.map(y => STATE.dividendos[y].total), PALETTE.slice(0, divYears.length)));
+
+  // Div accumulated
+  let acc = 0;
+  const accLabels = [], accData = [];
+  divYears.forEach(y => {
+    STATE.dividendos[y].mensual.forEach((v, i) => {
+      acc += v;
+      accLabels.push(`${MESES[i]} ${String(y).slice(2)}`);
+      accData.push(Math.round(acc));
+    });
+  });
+  makeChart('chart-div-acum', {
+    type: 'line',
+    data: {
+      labels: accLabels,
+      datasets: [{ data: accData, borderColor: COLORS.green, backgroundColor: 'rgba(52,211,153,0.08)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtE(ctx.raw) } } },
+      scales: {
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 9 } } },
+        y: { grid: { color: '#1c284233' } }
+      }
+    }
+  });
+
+  // Top winners / losers
+  const sorted = [...c].sort((a, b) => b.gp - a.gp);
+  document.getElementById('top-winners').innerHTML = sorted.slice(0, 4).map(x => `
+    <div class="rank-item">
+      <div><span class="rank-sym">${x.simbolo}</span><span class="rank-sec">${x.sector}</span></div>
+      <div style="text-align:right"><div class="gp-pos">+${fmtE(x.gp)}</div><div style="font-size:10px;color:var(--t3)">${fmtP(x.rentSD)}</div></div>
+    </div>`).join('');
+  document.getElementById('top-losers').innerHTML = sorted.slice(-4).reverse().map(x => `
+    <div class="rank-item">
+      <div><span class="rank-sym">${x.simbolo}</span><span class="rank-sec">${x.sector}</span></div>
+      <div style="text-align:right"><div class="gp-neg">${fmtE(x.gp)}</div><div style="font-size:10px;color:var(--t3)">${fmtP(x.rentSD)}</div></div>
+    </div>`).join('');
+}
+
+function renderCartera() {
+  const c = STATE.cartera;
+  const totalAct = c.reduce((s, x) => s + x.valorActual, 0);
+  const sorted = [...c].sort((a, b) => b.gp - a.gp);
+
+  renderKPIs('kpi-cartera', [
+    { label: 'Posiciones', value: c.length, color: 'var(--cyan)', dotColor: 'var(--cyan)', accent: 'cyan' },
+    { label: 'Valor total', value: fmtE(totalAct), dotColor: 'var(--t2)' },
+    { label: 'Mejor posición', value: sorted[0]?.simbolo||'—', color: 'var(--green)', dotColor: 'var(--green)', accent: 'green', sub: `+${fmtE(sorted[0]?.gp)}` },
+    { label: 'Peor posición', value: sorted[sorted.length-1]?.simbolo||'—', color: 'var(--red)', dotColor: 'var(--red)', accent: 'red', sub: fmtE(sorted[sorted.length-1]?.gp) },
+  ]);
+
+  const headers = ['Símbolo','Broker','Acciones','P.Compra','Importe','P.Actual','Valor actual','G/P','Rent.%','Total Ret.','Peso','Sector'];
+  let html = `<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  c.forEach((x, i) => {
+    const peso = (x.valorActual / totalAct * 100);
+    const brokerClass = x.broker.includes('MyInvestor') ? 'badge-cyan' : 'badge-amber';
+    html += `<tr>
+      <td class="bold">${x.simbolo}</td>
+      <td><span class="badge ${brokerClass}">${x.broker}</span></td>
+      <td>${fmt(x.acciones,0)}</td><td>${fmtE(x.precioCompra)}</td><td>${fmtE(x.importeCompra)}</td>
+      <td>${fmtE(x.precioActual)}</td><td class="bold">${fmtE(x.valorActual)}</td>
+      <td class="${gpClass(x.gp)}">${x.gp>=0?'+':''}${fmtE(x.gp)}</td>
+      <td class="${gpClass(x.rentSD)}">${fmtP(x.rentSD)}</td>
+      <td class="${gpClass(x.totalReturn)}" style="font-weight:600">${fmtP(x.totalReturn)}</td>
+      <td>${fmt(peso,1)}%</td>
+      <td><span class="badge badge-muted">${x.sector}</span></td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('table-cartera').innerHTML = html;
+
+  // GP bar chart
+  const colors = c.map(x => x.gp >= 0 ? COLORS.green : COLORS.red);
+  makeChart('chart-gp-bar', barConfig(c.map(x => x.simbolo), c.map(x => Math.round(x.gp)), colors, true));
+}
+
+function renderDividendos() {
+  const divs = STATE.dividendos;
+  const divT = Object.values(divs).reduce((s, d) => s + d.total, 0);
+  const y25 = divs[2025]?.total || 0;
+  const y26 = divs[2026]?.total || 0;
+
+  renderKPIs('kpi-dividendos', [
+    { label: 'Total cobrado', value: fmtE(divT), color: 'var(--amber)', dotColor: 'var(--amber)', accent: 'amber' },
+    { label: '2025 completo', value: fmtE(y25), color: 'var(--green)', dotColor: 'var(--green)', accent: 'green' },
+    { label: '2026 (parcial)', value: fmtE(y26), color: 'var(--cyan)', dotColor: 'var(--cyan)', accent: 'cyan' },
+    { label: 'Media mensual 2025', value: fmtE(y25/12), color: 'var(--purple)', dotColor: 'var(--purple)', accent: 'purple' },
+  ]);
+
+  // Year filter buttons
+  const years = Object.keys(divs).sort();
+  const filtersEl = document.getElementById('filters-div-year');
+  filtersEl.innerHTML = '<span>Año:</span>' + years.map(y =>
+    `<button class="filter-btn ${STATE.divYear==y?'active':''}" onclick="setDivYear(${y})">${y}</button>`
+  ).join('');
+
+  const dy = divs[STATE.divYear];
+  if (!dy) return;
+
+  document.getElementById('title-div-mensual').textContent = `Dividendos mensuales ${STATE.divYear}`;
+  document.getElementById('title-div-activo').textContent = `Dividendos por activo ${STATE.divYear}`;
+
+  // Monthly bar
+  makeChart('chart-div-mensual', barConfig(MESES, dy.mensual, COLORS.amber));
+
+  // By asset doughnut
+  const aLabels = Object.keys(dy.porActivo).sort((a,b) => dy.porActivo[b]-dy.porActivo[a]);
+  makeChart('chart-div-activo', doughnutConfig(aLabels, aLabels.map(a => dy.porActivo[a])));
+
+  // Table
+  let html = `<thead><tr><th>Activo</th>${MESES.map(m=>`<th>${m}</th>`).join('')}<th style="color:var(--amber)">Total</th></tr></thead><tbody>`;
+  Object.entries(dy.porActivo).sort((a,b)=>b[1]-a[1]).forEach(([activo, total]) => {
+    const item = findDivItem(activo);
+    html += `<tr><td class="bold">${activo}</td>`;
+    for (let i = 0; i < 12; i++) {
+      const v = item ? item[i] : 0;
+      html += `<td style="color:${v>0?'var(--amber)':'var(--t3)'}">${v>0?fmtE(v):'—'}</td>`;
+    }
+    html += `<td class="bold" style="color:var(--amber)">${fmtE(total)}</td></tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('table-dividendos').innerHTML = html;
+
+  // Evolution bar
+  makeChart('chart-div-evol', barConfig(years, years.map(y => divs[y].total), PALETTE.slice(0, years.length)));
+}
+
+function findDivItem(activo) {
+  // Return monthly array for an activo from raw parsed data
+  // We'll search through the stored dividend detail
+  return null; // monthly detail not stored per-activo currently, table shows totals
+}
+
+function renderOperaciones() {
+  let ops = [...STATE.operaciones];
+  if (STATE.opsType !== 'todas') ops = ops.filter(o => o.operacion === STATE.opsType);
+  if (STATE.opsBroker !== 'todos') ops = ops.filter(o => o.broker === STATE.opsBroker);
+
+  const allOps = STATE.operaciones;
+  const compras = allOps.filter(o => o.operacion === 'compra').length;
+  const ventas = allOps.filter(o => o.operacion === 'venta').length;
+
+  // Filters
+  const brokers = [...new Set(allOps.map(o => o.broker))].filter(Boolean);
+  document.getElementById('filters-ops').innerHTML = `
+    <span>Tipo:</span>
+    ${['todas','compra','venta'].map(f => `<button class="filter-btn ${STATE.opsType===f?'active':''}" onclick="setOpsFilter('${f}')">${f.charAt(0).toUpperCase()+f.slice(1)}</button>`).join('')}
+    <span style="margin-left:12px">Broker:</span>
+    <button class="filter-btn ${STATE.opsBroker==='todos'?'active':''}" onclick="setOpsBroker('todos')">Todos</button>
+    ${brokers.map(b => `<button class="filter-btn ${STATE.opsBroker===b?'active':''}" onclick="setOpsBroker('${b}')">${b}</button>`).join('')}
+  `;
+
+  renderKPIs('kpi-operaciones', [
+    { label: 'Total operaciones', value: allOps.length, color: 'var(--cyan)', dotColor: 'var(--cyan)', accent: 'cyan' },
+    { label: 'Compras', value: compras, color: 'var(--green)', dotColor: 'var(--green)', accent: 'green' },
+    { label: 'Ventas', value: ventas, color: 'var(--red)', dotColor: 'var(--red)', accent: 'red' },
+  ]);
+
+  const headers = ['Fecha','Valor','Broker','Bolsa','Cantidad','Operación','Importe €','Divisa'];
+  let html = `<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  ops.forEach(o => {
+    const isV = o.operacion === 'venta';
+    const brokerClass = o.broker.includes('MyInvestor') ? 'badge-cyan' : o.broker.includes('Openbank') ? 'badge-purple' : 'badge-amber';
+    html += `<tr>
+      <td>${o.fecha}</td><td class="bold">${o.valor}</td>
+      <td><span class="badge ${brokerClass}">${o.broker}</span></td>
+      <td>${o.bolsa}</td><td>${fmt(o.cantidad,0)}</td>
+      <td><span class="badge ${isV?'badge-red':'badge-green'}">${isV?'▼ VENTA':'▲ COMPRA'}</span></td>
+      <td style="font-weight:600">${fmtE(o.importe)}</td><td>${o.divisa}</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('table-operaciones').innerHTML = html;
+}
+
+function renderCerradas() {
+  const pos = STATE.cerradas;
+  const gpT = pos.reduce((s, p) => s + p.gpNeta, 0);
+  const wins = pos.filter(p => p.gpNeta > 0).length;
+  const losses = pos.filter(p => p.gpNeta < 0).length;
+
+  renderKPIs('kpi-cerradas', [
+    { label: 'Posiciones cerradas', value: pos.length, color: 'var(--cyan)', dotColor: 'var(--cyan)', accent: 'cyan' },
+    { label: 'G/P total cerradas', value: fmtE(gpT), color: gpT>=0?'var(--green)':'var(--red)', dotColor: gpT>=0?'var(--green)':'var(--red)', accent: gpT>=0?'green':'red' },
+    { label: 'Ganadoras', value: wins, color: 'var(--green)', dotColor: 'var(--green)', accent: 'green' },
+    { label: 'Perdedoras', value: losses, color: 'var(--red)', dotColor: 'var(--red)', accent: 'red' },
+  ]);
+
+  const headers = ['Valor','Año','G/P neta','% G/P','Resultado'];
+  let html = `<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+  pos.forEach(p => {
+    html += `<tr>
+      <td class="bold">${p.valor}</td><td>${p.anio}</td>
+      <td class="${gpClass(p.gpNeta)}">${p.gpNeta>=0?'+':''}${fmtE(p.gpNeta)}</td>
+      <td class="${gpClass(p.pctGP)}">${fmtP(p.pctGP)}</td>
+      <td><span class="badge ${p.gpNeta>=0?'badge-green':'badge-red'}">${p.gpNeta>=0?'✓ GANANCIA':'✗ PÉRDIDA'}</span></td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('table-cerradas').innerHTML = html;
+
+  // Bar chart
+  const colors = pos.map(p => p.gpNeta >= 0 ? COLORS.green : COLORS.red);
+  makeChart('chart-cerradas', barConfig(pos.map(p => p.valor.split(' ')[0].substring(0,10)), pos.map(p => p.gpNeta), colors));
+}
+
+function renderAll() {
+  renderResumen();
+  renderCartera();
+  renderDividendos();
+  renderOperaciones();
+  renderCerradas();
+  document.getElementById('timestamp').textContent =
+    `Última actualización: ${new Date().toLocaleString('es-ES')} · Auto-refresh cada ${AUTO_REFRESH_MINUTES} min · Inicio cartera: 17 Abril 2023`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NAVIGATION & FILTERS
+// ═══════════════════════════════════════════════════════════════════════════
+document.getElementById('nav').addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') return;
+  const tab = e.target.dataset.tab;
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(`sec-${tab}`).classList.add('active');
+});
+
+window.setDivYear = function(y) { STATE.divYear = y; renderDividendos(); };
+window.setOpsFilter = function(f) { STATE.opsType = f; renderOperaciones(); };
+window.setOpsBroker = function(b) { STATE.opsBroker = b; renderOperaciones(); };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATA LOAD
+// ═══════════════════════════════════════════════════════════════════════════
+async function loadData() {
+  try {
+    const [carteraRaw, divRaw, opsRaw, cerradasRaw] = await Promise.all([
+      fetchSheet(SHEETS.cartera),
+      fetchSheet(SHEETS.dividendos),
+      fetchSheet(SHEETS.operaciones),
+      fetchSheet(SHEETS.cerradas)
+    ]);
+
+    STATE.cartera = parseCartera(carteraRaw);
+    STATE.dividendos = parseDividendos(divRaw);
+    STATE.operaciones = parseOperaciones(opsRaw);
+    STATE.cerradas = parseCerradas(cerradasRaw);
+
+    // Set default div year to latest
+    const years = Object.keys(STATE.dividendos).map(Number).sort();
+    if (years.length) STATE.divYear = years[years.length - 1];
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    renderAll();
+  } catch (err) {
+    console.error('Error cargando datos:', err);
+    document.getElementById('loading').innerHTML = `
+      <div style="color:var(--red);font-size:14px;text-align:center">
+        <div style="font-size:40px;margin-bottom:16px">⚠️</div>
+        <div style="margin-bottom:8px">Error cargando datos de Google Sheets</div>
+        <div style="font-size:11px;color:var(--t3);max-width:500px">
+          Asegúrate de que la hoja está compartida como "Cualquier persona con el enlace puede ver".<br><br>
+          Detalle: ${err.message}
+        </div>
+        <button onclick="location.reload()" style="margin-top:20px;padding:10px 24px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--cyan);font-family:inherit;cursor:pointer;font-size:12px">
+          Reintentar
+        </button>
+      </div>
+    `;
+  }
+}
+
+// ── INIT ──
+loadData();
+setInterval(loadData, AUTO_REFRESH_MINUTES * 60 * 1000);
+</script>
+</body>
+</html>
