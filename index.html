@@ -597,16 +597,21 @@ function renderResumen() {
   const gpT = totalAct - totalInv;
   const divT = Object.values(STATE.dividendos).reduce((s, d) => s + d.total, 0);
   const gpConDiv = gpT + divT;
-  const winners = c.filter(x => x.gp > 0).length;
-  const losers = c.filter(x => x.gp < 0).length;
   const cerGP = STATE.cerradas.reduce((s, x) => s + x.gpNeta, 0);
+
+  // Rentabilidad anualizada (CAGR con dividendos)
+  const inicioCartera = new Date(2023, 3, 17); // 17 Abril 2023
+  const hoy = new Date();
+  const anios = (hoy - inicioCartera) / (365.25 * 24 * 60 * 60 * 1000);
+  const totalReturnRatio = (totalAct + divT) / totalInv;
+  const cagr = (Math.pow(totalReturnRatio, 1 / anios) - 1) * 100;
 
   renderKPIs('kpi-resumen', [
     { label: 'Valor cartera', value: fmtE(totalAct), color: 'var(--cyan)', dotColor: 'var(--cyan)', accent: 'cyan', sub: `Invertido: ${fmtE(totalInv)}` },
     { label: 'G/P sin dividendos', value: fmtE(gpT), color: gpT>=0?'var(--green)':'var(--red)', dotColor: gpT>=0?'var(--green)':'var(--red)', accent: gpT>=0?'green':'red', sub: fmtP((gpT/totalInv)*100) },
     { label: 'G/P con dividendos', value: fmtE(gpConDiv), color: gpConDiv>=0?'var(--green)':'var(--red)', dotColor: 'var(--green)', accent: 'green', sub: `${fmtP((gpConDiv/totalInv)*100)} total return` },
     { label: 'Dividendos cobrados', value: fmtE(divT), color: 'var(--amber)', dotColor: 'var(--amber)', accent: 'amber', sub: `Yield: ${fmt((divT/totalInv)*100)}%` },
-    { label: 'Win rate', value: `${fmt((winners/c.length)*100,0)}%`, color: 'var(--purple)', dotColor: 'var(--purple)', accent: 'purple', sub: `${winners}W / ${losers}L de ${c.length}` },
+    { label: 'Rent. anualizada', value: fmtP(cagr), color: cagr>=0?'var(--purple)':'var(--red)', dotColor: 'var(--purple)', accent: 'purple', sub: `CAGR desde Abr 2023 (${fmt(anios,1)} años)` },
     { label: 'G/P pos. cerradas', value: fmtE(cerGP), color: cerGP>=0?'var(--green)':'var(--red)', dotColor: 'var(--cyan)', accent: 'cyan', sub: `${STATE.cerradas.length} operaciones cerradas` },
   ]);
 
