@@ -211,6 +211,7 @@ tr:hover td { background: rgba(34,211,238,0.03); }
           <div class="chart-card"><h3>Distribución por sector</h3><div class="chart-container"><canvas id="chart-sector"></canvas></div></div>
           <div class="chart-card"><h3>Distribución por broker</h3><div class="chart-container"><canvas id="chart-broker"></canvas></div></div>
         </div>
+        <div class="chart-card" style="margin-bottom:24px"><h3>📊 Todas las posiciones</h3><div class="table-wrap" style="border:none"><table id="table-resumen-pos"></table></div></div>
         <div class="grid-2">
           <div class="chart-card"><h3>Dividendos anuales</h3><div class="chart-container"><canvas id="chart-div-anual"></canvas></div></div>
           <div class="chart-card"><h3>Dividendos acumulados</h3><div class="chart-container"><canvas id="chart-div-acum"></canvas></div></div>
@@ -490,9 +491,9 @@ function doughnutConfig(labels, data, colors) {
     type: 'doughnut',
     data: { labels, datasets: [{ data, backgroundColor: colors || PALETTE.slice(0, labels.length), borderColor: '#060a13', borderWidth: 2 }] },
     options: {
-      responsive: true, cutout: '55%',
+      responsive: true, maintainAspectRatio: true, aspectRatio: 1.8, cutout: '55%',
       plugins: {
-        legend: { position: 'bottom', labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 10 } } },
+        legend: { position: 'right', labels: { padding: 10, usePointStyle: true, pointStyleWidth: 8, font: { size: 10 }, boxWidth: 8 } },
         tooltip: { callbacks: { label: ctx => `${ctx.label}: ${fmtE(ctx.raw)} (${fmt((ctx.raw/ctx.dataset.data.reduce((a,b)=>a+b,0))*100,1)}%)` } }
       }
     }
@@ -594,6 +595,28 @@ function renderResumen() {
       }
     }
   });
+
+  // Positions table in resumen
+  const totalAct = c.reduce((s, x) => s + x.valorActual, 0);
+  const sortedByGP = [...c].sort((a, b) => b.gp - a.gp);
+  let posHtml = `<thead><tr><th>Símbolo</th><th>Sector</th><th>Broker</th><th>Invertido</th><th>Valor actual</th><th>G/P €</th><th>Rent. %</th><th>Total Ret.</th><th>Peso</th></tr></thead><tbody>`;
+  sortedByGP.forEach(x => {
+    const peso = (x.valorActual / totalAct * 100);
+    const brokerClass = x.broker.includes('MyInvestor') ? 'badge-cyan' : 'badge-amber';
+    posHtml += `<tr>
+      <td class="bold">${x.simbolo}</td>
+      <td><span class="badge badge-muted">${x.sector}</span></td>
+      <td><span class="badge ${brokerClass}">${x.broker}</span></td>
+      <td>${fmtE(x.importeCompra)}</td>
+      <td class="bold">${fmtE(x.valorActual)}</td>
+      <td class="${gpClass(x.gp)}">${x.gp>=0?'+':''}${fmtE(x.gp)}</td>
+      <td class="${gpClass(x.rentSD)}">${fmtP(x.rentSD)}</td>
+      <td class="${gpClass(x.totalReturn)}" style="font-weight:600">${fmtP(x.totalReturn)}</td>
+      <td>${fmt(peso,1)}%</td>
+    </tr>`;
+  });
+  posHtml += '</tbody>';
+  document.getElementById('table-resumen-pos').innerHTML = posHtml;
 
   // Top winners / losers
   const sorted = [...c].sort((a, b) => b.gp - a.gp);
