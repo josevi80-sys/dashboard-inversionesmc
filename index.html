@@ -597,7 +597,6 @@ function renderResumen() {
   });
 
   // Positions table in resumen
-  const totalAct = c.reduce((s, x) => s + x.valorActual, 0);
   const sortedByGP = [...c].sort((a, b) => b.gp - a.gp);
   let posHtml = `<thead><tr><th>Símbolo</th><th>Sector</th><th>Broker</th><th>Invertido</th><th>Valor actual</th><th>G/P €</th><th>Rent. %</th><th>Total Ret.</th><th>Peso</th></tr></thead><tbody>`;
   sortedByGP.forEach(x => {
